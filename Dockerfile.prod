@@ -21,9 +21,7 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 FROM python:3.11-slim
 
 # Crear usuario no-root para seguridad
-RUN useradd -m -u 1000 appuser && \
-    mkdir -p /app/staticfiles /app/mediafiles /app/logs && \
-    chown -R appuser:appuser /app
+RUN useradd -m -u 1000 appuser
 
 WORKDIR /app
 
@@ -39,6 +37,11 @@ COPY --from=builder /root/.local /home/appuser/.local
 # Copiar el código de la aplicación
 COPY --chown=appuser:appuser . .
 
+# Crear directorios con permisos correctos
+RUN mkdir -p /app/staticfiles /app/mediafiles /app/logs && \
+    chown -R appuser:appuser /app && \
+    chmod -R 755 /app/logs
+
 # Asegurar que el PATH incluya los binarios de pip
 ENV PATH=/home/appuser/.local/bin:$PATH
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -50,9 +53,5 @@ USER appuser
 # Exponer el puerto
 EXPOSE 8000
 
-# Healthcheck
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/health/', timeout=2)" || exit 1
-
-# Comando por defecto - será sobreescrito por docker-compose
+# Comando por defecto
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "clmundo.wsgi:application"]
