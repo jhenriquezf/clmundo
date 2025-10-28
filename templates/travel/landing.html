@@ -1,0 +1,102 @@
+<!-- templates/travel/landing.html -->
+{% extends 'travel/base.html' %}
+
+{% block title %}ClMundo - Bienvenida{% endblock %}
+
+{% block body_class %}bg-gradient-to-br from-blue-50 to-emerald-50 min-h-screen flex items-center justify-center{% endblock %}
+
+{% block content %}
+<div class="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 mx-4">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="mb-4 p-4 rounded-lg {% if message.tags == 'success' %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <div class="text-center mb-8">
+        <div class="w-24 h-24 bg-blue-600 rounded-2xl mx-auto mb-6 flex items-center justify-center">
+            <i data-feather="compass" class="text-white w-12 h-12"></i>
+        </div>
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">ClMundo</h1>
+        <p class="text-gray-600">Operado por María Torres</p>
+    </div>
+
+    <div class="space-y-6">
+        <div class="text-center">
+            <h2 class="text-xl font-semibold text-gray-800 mb-2">Bienvenido a tu viaje</h2>
+            <p class="text-gray-600 mb-4">Accede a tu itinerario, vouchers y soporte durante tu estadía</p>
+        </div>
+
+        <div class="space-y-4">
+            <form method="post" action="{% url 'magic_link_login' %}">
+                {% csrf_token %}
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-4 px-4 rounded-xl transition duration-200 flex items-center justify-center">
+                    <i data-feather="mail" class="w-5 h-5 mr-2"></i>
+                    Continuar con Magic Link
+                </button>
+            </form>
+            
+            <div class="relative flex items-center">
+                <div class="flex-grow border-t border-gray-200"></div>
+                <span class="flex-shrink mx-4 text-gray-400 text-sm">o</span>
+                <div class="flex-grow border-t border-gray-200"></div>
+            </div>
+
+            <button class="w-full border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-4 px-4 rounded-xl transition duration-200 flex items-center justify-center">
+                <i data-feather="smartphone" class="w-5 h-5 mr-2"></i>
+                Continuar con OTP
+            </button>
+        </div>
+
+        <div class="text-center pt-4">
+            <div class="flex items-center justify-center space-x-2 mb-4">
+                <span class="text-gray-500" id="language-label">Idioma:</span>
+                <select id="language-select" class="text-blue-600 font-medium border-none bg-transparent focus:ring-0">
+                    <option value="es">Español</option>
+                    <option value="en">English</option>
+                    <option value="pt">Português</option>
+                </select>
+            </div>
+            <p class="text-xs text-gray-400">Al continuar, aceptas nuestros Términos y Política de Privacidad</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+// Funcionalidad de cambio de idioma
+document.getElementById('language-select').addEventListener('change', function() {
+    const texts = {
+        'es': {
+            welcome: 'Bienvenido a tu viaje',
+            description: 'Accede a tu itinerario, vouchers y soporte durante tu estadía',
+            magicLink: 'Continuar con Magic Link',
+            otp: 'Continuar con OTP',
+            language: 'Idioma:'
+        },
+        'en': {
+            welcome: 'Welcome to your trip',
+            description: 'Access your itinerary, vouchers and support during your stay',
+            magicLink: 'Continue with Magic Link',
+            otp: 'Continue with OTP',
+            language: 'Language:'
+        },
+        'pt': {
+            welcome: 'Bem-vindo à sua viagem',
+            description: 'Acesse seu itinerário, vouchers e suporte durante sua estadia',
+            magicLink: 'Continuar com Magic Link',
+            otp: 'Continuar com OTP',
+            language: 'Idioma:'
+        }
+    };
+    
+    const selected = this.value;
+    const selectedTexts = texts[selected];
+    
+    document.querySelector('h2').textContent = selectedTexts.welcome;
+    document.querySelector('p.text-gray-600').textContent = selectedTexts.description;
+    document.getElementById('language-label').textContent = selectedTexts.language;
+});
+{% endblock %}

@@ -1,0 +1,811 @@
+<!-- templates/travel/segment_detail.html -->
+{% extends 'travel/base.html' %}
+
+{% block title %}{{ segment.service.name }} - Detalles{% endblock %}
+
+{% block extra_css %}
+.map-container {
+    height: 300px;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+}
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.whatsapp-btn {
+    background: linear-gradient(45deg, #25D366, #128C7E);
+}
+
+.whatsapp-btn:hover {
+    background: linear-gradient(45deg, #128C7E, #075E54);
+}
+
+.directions-card {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+{% endblock %}
+
+{% block content %}
+<header class="bg-white shadow-sm sticky top-0 z-10">
+    <div class="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+        <a href="{% url 'home' %}" class="p-1 rounded-lg hover:bg-gray-100">
+            <i data-feather="arrow-left" class="text-gray-600 w-5 h-5"></i>
+        </a>
+        <h1 class="font-semibold text-gray-800">{{ segment.service.get_service_type_display }}</h1>
+        <div class="flex items-center space-x-2">
+            <button onclick="shareSegment()" class="p-1 rounded-lg hover:bg-gray-100">
+                <i data-feather="share-2" class="text-gray-600 w-5 h-5"></i>
+            </button>
+        </div>
+    </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 pb-20">
+    <!-- Hero image -->
+    <div class="relative rounded-xl overflow-hidden mb-6" style="height: 200px;">
+        <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10"></div>
+        <img src="https://images.unsplash.com/photo-1594736797933-d0401ba2fe65?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80" 
+             alt="{{ segment.service.name }}" class="w-full h-full object-cover">
+        <div class="absolute bottom-4 left-4 text-white z-20">
+            <h2 class="text-xl font-bold mb-1">{{ segment.service.name }}</h2>
+            <p class="text-sm flex items-center">
+                <i data-feather="calendar" class="w-4 h-4 mr-2"></i>
+                {{ segment.scheduled_datetime|date:"j M, H:i" }}
+                {% if segment.service.duration_hours %}
+                - {{ segment.service.duration_hours }}h
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- Información principal -->
+    <div class="bg-white rounded-xl shadow-sm p-5 mb-6">
+        <h3 class="font-semibold text-gray-800 mb-4">Información del {{ segment.service.get_service_type_display|lower }}</h3>
+        <div class="space-y-4">
+            {% if segment.pickup_location %}
+            <div class="flex items-start">
+                <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3 flex-shrink-0">
+                    <i data-feather="map-pin" class="text-blue-600 w-4 h-4"></i>
+                </div>
+                <div class="flex-1">
+                    <h4 class="font-medium text-gray-800">Punto de encuentro</h4>
+                    <p class="text-gray-600">{{ segment.pickup_location }}</p>
+                    {% if segment.destination_location %}
+                    <p class="text-sm text-gray-500">Destino: {{ segment.destination_location }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if segment.service.duration_hours %}
+            <div class="flex items-start">
+                <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3 flex-shrink-0">
+                    <i data-feather="clock" class="text-green-600 w-4 h-4"></i>
+                </div>
+                <div>
+                    <h4 class="font-medium text-gray-800">Duración</h4>
+                    <p class="text-gray-600">{{ segment.service.duration_hours }} horas aproximadamente</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if segment.service.description %}
+            <div class="flex items-start">
+                <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3 flex-shrink-0">
+                    <i data-feather="info" class="text-purple-600 w-4 h-4"></i>
+                </div>
+                <div>
+                    <h4 class="font-medium text-gray-800">Descripción</h4>
+                    <p class="text-gray-600">{{ segment.service.description }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Mapa y direcciones -->
+    <div class="bg-white rounded-xl shadow-sm p-5 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-gray-800">Ubicación y direcciones</h3>
+            <button onclick="getCurrentLocation()" class="text-blue-600 hover:text-blue-800 text-sm flex items-center">
+                <i data-feather="navigation" class="w-4 h-4 mr-1"></i>
+                Mi ubicación
+            </button>
+        </div>
+        
+        <div id="map-container" class="map-container mb-4">
+            <div id="loading-overlay" class="loading-overlay">
+                <div class="text-center">
+                    <div class="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mb-2 mx-auto"></div>
+                    <p class="text-gray-600">Cargando mapa...</p>
+                </div>
+            </div>
+            <div id="map-placeholder" class="w-full h-full bg-gray-100 flex items-center justify-center text-gray-500">
+                <div class="text-center">
+                    <i data-feather="map" class="w-12 h-12 mx-auto mb-2"></i>
+                    <p>Mapa interactivo</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Botones de acción del mapa -->
+        <div class="grid grid-cols-2 gap-3">
+            <button onclick="getDirections()" class="flex-1 bg-blue-600 text-white font-medium py-3 px-4 rounded-lg hover:bg-blue-700 flex items-center justify-center">
+                <i data-feather="navigation" class="w-4 h-4 mr-2"></i>
+                Cómo llegar
+            </button>
+            <button onclick="openInGoogleMaps()" class="flex-1 bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-lg hover:bg-gray-300 flex items-center justify-center">
+                <i data-feather="external-link" class="w-4 h-4 mr-2"></i>
+                Abrir en Maps
+            </button>
+        </div>
+    </div>
+
+    <!-- Panel de direcciones -->
+    <div id="directions-panel" class="bg-white rounded-xl shadow-sm p-5 mb-6 hidden directions-card">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-gray-800">Direcciones</h3>
+            <button onclick="closeDirections()" class="text-gray-400 hover:text-gray-600">
+                <i data-feather="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        
+        <div id="directions-content">
+            <!-- Contenido dinámico de direcciones -->
+        </div>
+    </div>
+
+    <!-- Recomendaciones cercanas -->
+    <div class="bg-white rounded-xl shadow-sm p-5 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-gray-800">Lugares cercanos</h3>
+            <select id="place-type-selector" class="text-sm border border-gray-300 rounded-lg px-3 py-1">
+                <option value="restaurant">Restaurantes</option>
+                <option value="tourist_attraction">Atracciones</option>
+                <option value="gas_station">Gasolineras</option>
+                <option value="pharmacy">Farmacias</option>
+            </select>
+        </div>
+        
+        <div id="nearby-places" class="space-y-3">
+            <div class="text-center py-4 text-gray-500">
+                <i data-feather="map-pin" class="w-8 h-8 mx-auto mb-2 text-gray-300"></i>
+                <p>Cargando recomendaciones...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Voucher mejorado -->
+    <div class="bg-white rounded-xl shadow-sm p-5 mb-6">
+        <h3 class="font-semibold text-gray-800 mb-4">Tu voucher digital</h3>
+        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 text-center">
+            <div class="mx-auto w-32 h-32 bg-white p-2 mb-4 rounded-lg shadow-sm">
+                <div class="w-full h-full border-2 border-dashed border-gray-300 rounded flex items-center justify-center">
+                    <div class="text-center">
+                        <i data-feather="smartphone" class="text-gray-400 w-8 h-8 mx-auto mb-1"></i>
+                        <p class="text-xs text-gray-500">QR Code</p>
+                    </div>
+                </div>
+            </div>
+            <p class="text-sm text-gray-600 mb-4 font-mono">{{ segment.voucher_code }}</p>
+            
+            <div class="flex space-x-2">
+                <button onclick="downloadVoucher()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg flex items-center justify-center">
+                    <i data-feather="download" class="w-4 h-4 mr-2"></i>
+                    Descargar
+                </button>
+                <button onclick="shareVoucher()" class="flex-1 bg-white border border-blue-600 text-blue-600 font-medium py-2 px-4 rounded-lg hover:bg-blue-50 flex items-center justify-center">
+                    <i data-feather="share" class="w-4 h-4 mr-2"></i>
+                    Compartir
+                </button>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Botones de acción flotantes -->
+<div class="fixed bottom-6 left-4 right-4 max-w-2xl mx-auto">
+    <div class="flex space-x-3">
+        <!-- Botón WhatsApp -->
+        <button onclick="sendWhatsAppReminder()" class="flex-1 whatsapp-btn text-white font-medium py-3 px-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center">
+            <i data-feather="message-circle" class="w-5 h-5 mr-2"></i>
+            Recordatorio WhatsApp
+        </button>
+        
+        <!-- Botón incidencia -->
+        <button onclick="openIncidentModal()" class="bg-red-600 text-white p-3 rounded-xl shadow-lg hover:bg-red-700 hover:shadow-xl transition-all duration-300">
+            <i data-feather="alert-triangle" class="w-5 h-5"></i>
+        </button>
+        
+        <!-- Botón emergencia -->
+        <button onclick="openEmergencyModal()" class="bg-yellow-600 text-white p-3 rounded-xl shadow-lg hover:bg-yellow-700 hover:shadow-xl transition-all duration-300">
+            <i data-feather="phone" class="w-5 h-5"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Modal de emergencia mejorado -->
+<div id="emergency-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-xl p-6 w-full max-w-md">
+            <div class="flex items-center mb-4">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                    <i data-feather="phone" class="w-6 h-6 text-red-600"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold">Contacto de Emergencia</h3>
+                    <p class="text-sm text-gray-600">Respuesta inmediata 24/7</p>
+                </div>
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de emergencia</label>
+                <select id="emergency-type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                    <option value="medical">Médica</option>
+                    <option value="security">Seguridad</option>
+                    <option value="transport">Transporte</option>
+                    <option value="lost">Perdido/Extraviado</option>
+                    <option value="other">Otra</option>
+                </select>
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Ubicación actual (opcional)</label>
+                <input type="text" id="emergency-location" placeholder="Describe dónde te encuentras" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Detalles adicionales</label>
+                <textarea id="emergency-details" rows="3" placeholder="Describe brevemente la situación..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"></textarea>
+            </div>
+            
+            <div class="flex space-x-3">
+                <button onclick="closeEmergencyModal()" class="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-300">
+                    Cancelar
+                </button>
+                <button onclick="contactEmergency()" class="flex-1 bg-red-600 text-white py-3 px-4 rounded-lg hover:bg-red-700 flex items-center justify-center">
+                    <i data-feather="phone" class="w-4 h-4 mr-2"></i>
+                    Contactar Ahora
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de incidencias mejorado -->
+<div id="incident-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold">Reportar problema</h3>
+                <button onclick="closeIncidentModal()" class="text-gray-400 hover:text-gray-600">
+                    <i data-feather="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            
+            <form id="incident-form" class="space-y-4">
+                {% csrf_token %}
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Título del problema *</label>
+                    <input type="text" name="title" required placeholder="ej: Bus llegó tarde" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
+                        <select name="category" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="transport">Transporte</option>
+                            <option value="accommodation">Alojamiento</option>
+                            <option value="service_quality">Calidad de Servicio</option>
+                            <option value="schedule">Horarios</option>
+                            <option value="safety">Seguridad</option>
+                            <option value="weather">Clima</option>
+                            <option value="other">Otros</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Gravedad</label>
+                        <select name="severity" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="low">Baja</option>
+                            <option value="medium">Media</option>
+                            <option value="high">Alta</option>
+                            <option value="critical">Crítica</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Descripción *</label>
+                    <textarea name="description" rows="4" required placeholder="Describe detalladamente qué ocurrió..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Ubicación (opcional)</label>
+                    <input type="text" name="location" placeholder="¿Dónde ocurrió?" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">¿Cuándo ocurrió?</label>
+                        <input type="datetime-local" name="incident_datetime" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Pasajeros afectados</label>
+                        <input type="number" name="affected_passengers" min="1" value="1" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Teléfono de contacto</label>
+                    <input type="tel" name="reporter_contact" value="{{ customer.phone }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div class="flex space-x-3 pt-4">
+                    <button type="button" onclick="closeIncidentModal()" class="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-300">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="flex-1 bg-red-600 text-white py-3 px-4 rounded-lg hover:bg-red-700 flex items-center justify-center">
+                        <i data-feather="alert-triangle" class="w-4 h-4 mr-2"></i>
+                        Reportar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+let currentLocation = null;
+let destinationLocation = null;
+let map = null;
+
+// Inicializar cuando carga la página
+document.addEventListener('DOMContentLoaded', function() {
+    initializePage();
+    loadNearbyPlaces();
+});
+
+function initializePage() {
+    // Pre-llenar fecha de incidente
+    const now = new Date();
+    const datetime = now.toISOString().slice(0, 16);
+    document.querySelector('input[name="incident_datetime"]').value = datetime;
+    
+    // Cargar mapa si hay ubicación
+    {% if segment.pickup_location %}
+    loadStaticMap();
+    {% endif %}
+}
+
+function loadStaticMap() {
+    const mapContainer = document.getElementById('map-placeholder');
+    const loadingOverlay = document.getElementById('loading-overlay');
+    
+    // Simular carga del mapa
+    setTimeout(() => {
+        mapContainer.innerHTML = `
+            <div class="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white relative">
+                <div class="absolute inset-0 bg-black bg-opacity-20"></div>
+                <div class="text-center z-10">
+                    <i data-feather="map-pin" class="w-8 h-8 mx-auto mb-2"></i>
+                    <p class="font-medium">{{ segment.pickup_location|default:"Ubicación del servicio" }}</p>
+                    <p class="text-sm opacity-75">Toca para vista interactiva</p>
+                </div>
+            </div>
+        `;
+        loadingOverlay.classList.add('hidden');
+        feather.replace();
+    }, 1500);
+}
+
+function getCurrentLocation() {
+    if (navigator.geolocation) {
+        const btn = event.target;
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<i data-feather="loader" class="w-4 h-4 mr-1 animate-spin"></i>Obteniendo...';
+        btn.disabled = true;
+        
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                currentLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                
+                btn.innerHTML = '<i data-feather="check" class="w-4 h-4 mr-1"></i>Ubicación obtenida';
+                btn.classList.add('text-green-600');
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalContent;
+                    btn.disabled = false;
+                    btn.classList.remove('text-green-600');
+                }, 2000);
+                
+                // Recargar lugares cercanos con la nueva ubicación
+                loadNearbyPlaces(currentLocation.lat, currentLocation.lng);
+            },
+            function(error) {
+                btn.innerHTML = '<i data-feather="x" class="w-4 h-4 mr-1"></i>Error ubicación';
+                btn.classList.add('text-red-600');
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalContent;
+                    btn.disabled = false;
+                    btn.classList.remove('text-red-600');
+                }, 2000);
+            }
+        );
+        feather.replace();
+    } else {
+        showNotification('Tu navegador no soporta geolocalización', 'error');
+    }
+}
+
+function getDirections() {
+    const origin = currentLocation ? `${currentLocation.lat},${currentLocation.lng}` : null;
+    
+    fetch(`/api/directions/{{ segment.id }}/?current_location=${origin || ''}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showDirections(data.directions);
+            } else {
+                showNotification('Error obteniendo direcciones: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Error de conexión', 'error');
+        });
+}
+
+function showDirections(directions) {
+    const panel = document.getElementById('directions-panel');
+    const content = document.getElementById('directions-content');
+    
+    content.innerHTML = `
+        <div class="bg-blue-50 rounded-lg p-4 mb-4">
+            <div class="flex items-center justify-between mb-2">
+                <span class="font-medium text-blue-900">Tiempo estimado</span>
+                <span class="text-blue-700 font-semibold">${directions.duration}</span>
+            </div>
+            <div class="flex items-center justify-between">
+                <span class="font-medium text-blue-900">Distancia</span>
+                <span class="text-blue-700 font-semibold">${directions.distance}</span>
+            </div>
+        </div>
+        
+        <div class="space-y-3">
+            <h4 class="font-medium text-gray-800 flex items-center">
+                <i data-feather="navigation" class="w-4 h-4 mr-2"></i>
+                Instrucciones paso a paso
+            </h4>
+            ${directions.steps.map((step, index) => `
+                <div class="flex items-start p-3 bg-gray-50 rounded-lg">
+                    <span class="w-6 h-6 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center mr-3 mt-0.5">${index + 1}</span>
+                    <div class="flex-1">
+                        <p class="text-gray-800 text-sm">${step.instruction.replace(/<[^>]*>/g, '')}</p>
+                        <p class="text-xs text-gray-500 mt-1">${step.distance} • ${step.duration}</p>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+        
+        <button onclick="openInGoogleMaps()" class="w-full mt-4 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 flex items-center justify-center">
+            <i data-feather="external-link" class="w-4 h-4 mr-2"></i>
+            Abrir navegación en Google Maps
+        </button>
+    `;
+    
+    panel.classList.remove('hidden');
+    feather.replace();
+}
+
+function closeDirections() {
+    document.getElementById('directions-panel').classList.add('hidden');
+}
+
+function openInGoogleMaps() {
+    const destination = "{{ segment.pickup_location|default:segment.service.location }}";
+    const encodedDestination = encodeURIComponent(destination);
+    
+    if (currentLocation) {
+        window.open(`https://www.google.com/maps/dir/${currentLocation.lat},${currentLocation.lng}/${encodedDestination}`);
+    } else {
+        window.open(`https://www.google.com/maps/search/${encodedDestination}`);
+    }
+}
+
+function loadNearbyPlaces(lat = null, lng = null) {
+    const placeType = document.getElementById('place-type-selector').value;
+    const url = `/api/nearby-places/?lat=${lat || ''}&lng=${lng || ''}&type=${placeType}`;
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayNearbyPlaces(data.places);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading nearby places:', error);
+        });
+}
+
+function displayNearbyPlaces(places) {
+    const container = document.getElementById('nearby-places');
+    
+    if (places.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-4 text-gray-500">
+                <i data-feather="map-pin" class="w-8 h-8 mx-auto mb-2 text-gray-300"></i>
+                <p>No se encontraron lugares cercanos</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = places.map(place => `
+        <div class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                <i data-feather="map-pin" class="w-5 h-5 text-blue-600"></i>
+            </div>
+            <div class="flex-1">
+                <h4 class="font-medium text-gray-800">${place.name}</h4>
+                <p class="text-sm text-gray-600">${place.vicinity || 'Cerca de ti'}</p>
+                ${place.rating ? `<div class="flex items-center mt-1">
+                    <span class="text-yellow-500 text-sm">★</span>
+                    <span class="text-sm text-gray-600 ml-1">${place.rating}/5</span>
+                </div>` : ''}
+            </div>
+            <button onclick="openPlaceInMaps('${place.name}')" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
+                <i data-feather="external-link" class="w-4 h-4"></i>
+            </button>
+        </div>
+    `).join('');
+    
+    feather.replace();
+}
+
+function openPlaceInMaps(placeName) {
+    const encodedPlace = encodeURIComponent(placeName);
+    window.open(`https://www.google.com/maps/search/${encodedPlace}`);
+}
+
+// Event listener para cambio de tipo de lugar
+document.getElementById('place-type-selector').addEventListener('change', function() {
+    loadNearbyPlaces(currentLocation?.lat, currentLocation?.lng);
+});
+
+function sendWhatsAppReminder() {
+    const btn = event.target;
+    const originalContent = btn.innerHTML;
+    btn.innerHTML = '<i data-feather="loader" class="w-5 h-5 mr-2 animate-spin"></i>Enviando...';
+    btn.disabled = true;
+    
+    fetch(`/api/whatsapp-reminder/{{ segment.id }}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Recordatorio enviado por WhatsApp', 'success');
+            btn.innerHTML = '<i data-feather="check" class="w-5 h-5 mr-2"></i>Enviado';
+            btn.classList.remove('whatsapp-btn');
+            btn.classList.add('bg-green-600');
+        } else {
+            showNotification('Error: ' + data.error, 'error');
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+        }
+    })
+    .catch(error => {
+        showNotification('Error de conexión', 'error');
+        btn.innerHTML = originalContent;
+        btn.disabled = false;
+    })
+    .finally(() => {
+        feather.replace();
+    });
+}
+
+function contactEmergency() {
+    const type = document.getElementById('emergency-type').value;
+    const location = document.getElementById('emergency-location').value;
+    const details = document.getElementById('emergency-details').value;
+    
+    const data = {
+        type: type,
+        location: location || 'No especificada',
+        details: details || 'Sin detalles adicionales'
+    };
+    
+    fetch('/api/emergency/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeEmergencyModal();
+            showNotification(data.message, 'success');
+            
+            // Mostrar información de contacto directo
+            setTimeout(() => {
+                if (confirm('¿Quieres llamar directamente a emergencias?')) {
+                    window.location.href = 'tel:+56999990000';
+                }
+            }, 2000);
+        } else {
+            showNotification('Error: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Error de conexión', 'error');
+    });
+}
+
+// Funciones de modal
+function openEmergencyModal() {
+    document.getElementById('emergency-modal').classList.remove('hidden');
+}
+
+function closeEmergencyModal() {
+    document.getElementById('emergency-modal').classList.add('hidden');
+    // Limpiar campos
+    document.getElementById('emergency-location').value = '';
+    document.getElementById('emergency-details').value = '';
+}
+
+function openIncidentModal() {
+    document.getElementById('incident-modal').classList.remove('hidden');
+    document.querySelector('input[name="title"]').focus();
+}
+
+function closeIncidentModal() {
+    document.getElementById('incident-modal').classList.add('hidden');
+    document.getElementById('incident-form').reset();
+    const now = new Date().toISOString().slice(0, 16);
+    document.querySelector('input[name="incident_datetime"]').value = now;
+}
+
+// Manejo del formulario de incidencias
+document.getElementById('incident-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i data-feather="loader" class="w-4 h-4 mr-2 animate-spin"></i>Reportando...';
+    submitBtn.disabled = true;
+    
+    const formData = new FormData(this);
+    
+    fetch('{% url "report_incident" segment.id %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeIncidentModal();
+            showNotification('Incidencia reportada correctamente. Código: #' + data.incident_id, 'success');
+            
+            // Ofrecer envío por WhatsApp
+            setTimeout(() => {
+                if (confirm('¿Quieres recibir actualizaciones por WhatsApp?')) {
+                    sendWhatsAppReminder();
+                }
+            }, 2000);
+        } else {
+            showNotification('Error al reportar incidencia', 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Error de conexión', 'error');
+    })
+    .finally(() => {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+        feather.replace();
+    });
+});
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 max-w-sm ${
+        type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+    }`;
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <i data-feather="${type === 'success' ? 'check' : 'x'}" class="w-5 h-5 mr-2"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    document.body.appendChild(notification);
+    feather.replace();
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 5000);
+}
+
+// Funciones adicionales
+function shareSegment() {
+    if (navigator.share) {
+        navigator.share({
+            title: '{{ segment.service.name }}',
+            text: 'Mi actividad en AndesTravel',
+            url: window.location.href
+        });
+    } else {
+        // Fallback para navegadores sin Web Share API
+        navigator.clipboard.writeText(window.location.href);
+        showNotification('Link copiado al portapapeles', 'success');
+    }
+}
+
+function downloadVoucher() {
+    // Simular descarga de voucher
+    showNotification('Descargando voucher...', 'success');
+    
+    fetch(`/api/voucher/{{ segment.id }}/download/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Voucher descargado', 'success');
+            }
+        })
+        .catch(error => {
+            showNotification('Error descargando voucher', 'error');
+        });
+}
+
+function shareVoucher() {
+    const voucherInfo = `
+AndesTravel - {{ segment.service.name }}
+Fecha: {{ segment.scheduled_datetime|date:"j M Y, H:i" }}
+Código: {{ segment.voucher_code }}
+Ubicación: {{ segment.pickup_location|default:"Por confirmar" }}
+    `.trim();
+    
+    if (navigator.share) {
+        navigator.share({
+            title: 'Mi voucher - AndesTravel',
+            text: voucherInfo
+        });
+    } else {
+        navigator.clipboard.writeText(voucherInfo);
+        showNotification('Información del voucher copiada', 'success');
+    }
+}
+{% endblock %}

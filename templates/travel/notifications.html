@@ -1,0 +1,43 @@
+# templates/travel/notifications.html
+{% extends 'travel/base.html' %}
+
+{% block title %}Notificaciones - ClMundo{% endblock %}
+
+{% block content %}
+<header class="bg-white shadow-sm sticky top-0 z-10">
+    <div class="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+        <a href="{% url 'home' %}" class="p-1 rounded-lg hover:bg-gray-100">
+            <i data-feather="arrow-left" class="text-gray-600 w-5 h-5"></i>
+        </a>
+        <h1 class="font-semibold text-gray-800">Notificaciones</h1>
+        <div class="w-6"></div>
+    </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 py-6">
+    {% if notifications %}
+        <div class="space-y-4">
+            {% for notification in notifications %}
+            <div class="bg-white rounded-xl shadow-sm p-4 {% if not notification.read %}border-l-4 border-blue-500{% endif %}">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <h3 class="font-medium text-gray-800 mb-1">{{ notification.title }}</h3>
+                        <p class="text-gray-600 text-sm mb-2">{{ notification.message }}</p>
+                        <p class="text-xs text-gray-400">{{ notification.created_at|timesince }} atrás</p>
+                    </div>
+                    {% if not notification.read %}
+                    <div class="w-2 h-2 bg-blue-500 rounded-full ml-3 mt-2"></div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center py-12">
+            <i data-feather="bell" class="w-16 h-16 text-gray-300 mx-auto mb-4"></i>
+            <h3 class="text-lg font-medium text-gray-800 mb-2">No hay notificaciones</h3>
+            <p class="text-gray-600">Te notificaremos sobre actualizaciones de tu viaje</p>
+        </div>
+    {% endif %}
+</main>
+{% endblock %}

@@ -1,0 +1,62 @@
+# templates/travel/emails/reminder.html
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Recordatorio de servicio - ClMundo</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #0ea5e9, #10b981); padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
+        <h1 style="color: white; margin: 0; font-size: 24px;">ClMundo</h1>
+        <p style="color: white; margin: 10px 0 0 0; opacity: 0.9;">Tu viaje te espera</p>
+    </div>
+    
+    <h2 style="color: #1f2937;">¡Hola {{ customer.user.first_name }}!</h2>
+    
+    <p style="color: #4b5563; line-height: 1.6;">
+        Te recordamos que mañana tienes programado:
+    </p>
+    
+    <div style="background: #f9fafb; border-left: 4px solid #0ea5e9; padding: 20px; margin: 20px 0; border-radius: 5px;">
+        <h3 style="margin: 0 0 10px 0; color: #1f2937;">{{ segment.service.name }}</h3>
+        <p style="margin: 5px 0; color: #6b7280;">
+            <strong>Fecha:</strong> {{ segment.scheduled_datetime|date:"j \d\e F \d\e Y" }}
+        </p>
+        <p style="margin: 5px 0; color: #6b7280;">
+            <strong>Hora:</strong> {{ segment.scheduled_datetime|time:"H:i" }}
+        </p>
+        {% if segment.pickup_location %}
+        <p style="margin: 5px 0; color: #6b7280;">
+            <strong>Punto de encuentro:</strong> {{ segment.pickup_location }}
+        </p>
+        {% endif %}
+        <p style="margin: 5px 0; color: #6b7280;">
+            <strong>Código voucher:</strong> {{ segment.voucher_code }}
+        </p>
+    </div>
+    
+    {% if segment.service.recommendations %}
+    <div style="background: #fef3c7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <h4 style="margin: 0 0 10px 0; color: #92400e;">Recomendaciones:</h4>
+        <p style="margin: 0; color: #92400e; font-size: 14px;">{{ segment.service.recommendations }}</p>
+    </div>
+    {% endif %}
+    
+    <p style="color: #4b5563; line-height: 1.6;">
+        Si tienes alguna pregunta o necesitas modificar algo, no dudes en contactarnos.
+    </p>
+    
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="mailto:soporte@clmundo.com" style="background: #0ea5e9; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">
+            Contactar Soporte
+        </a>
+    </div>
+    
+    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+    
+    <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+        ClMundo - Operado por María Torres<br>
+        Este es un email automático, por favor no responder directamente.
+    </p>
+</body>
+</html>

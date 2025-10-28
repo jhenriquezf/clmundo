@@ -1,0 +1,163 @@
+<!-- templates/travel/incident_list.html -->
+{% extends 'travel/base.html' %}
+
+{% block title %}Mis Incidencias - AndesTravel{% endblock %}
+
+{% block content %}
+<header class="bg-white shadow-sm sticky top-0 z-10">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+        <a href="{% url 'home' %}" class="p-1 rounded-lg hover:bg-gray-100">
+            <i data-feather="arrow-left" class="text-gray-600 w-5 h-5"></i>
+        </a>
+        <h1 class="font-semibold text-gray-800">Mis Incidencias</h1>
+        <div class="w-6"></div>
+    </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-4 py-6">
+    <!-- Filtros -->
+    <div class="bg-white rounded-xl shadow-sm p-4 mb-6">
+        <form method="GET" class="flex flex-wrap gap-4">
+            <div class="flex-1 min-w-48">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                <select name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <option value="">Todos los estados</option>
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex-1 min-w-48">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                <select name="category" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <option value="">Todas las categorías</option>
+                    {% for value, label in category_choices %}
+                        <option value="{{ value }}" {% if current_category == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
+                    <i data-feather="filter" class="w-4 h-4 mr-2"></i>
+                    Filtrar
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Lista de incidencias -->
+    {% if page_obj %}
+        <div class="space-y-4">
+            {% for incident in page_obj %}
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                <div class="p-6">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-3 mb-2">
+                                <h3 class="text-lg font-semibold text-gray-800">{{ incident.title }}</h3>
+                                <span class="px-2 py-1 text-xs font-medium rounded-full
+                                    {% if incident.status == 'open' %}bg-red-100 text-red-800
+                                    {% elif incident.status == 'in_progress' %}bg-yellow-100 text-yellow-800
+                                    {% elif incident.status == 'resolved' %}bg-green-100 text-green-800
+                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ incident.get_status_display }}
+                                </span>
+                                <span class="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
+                                    {{ incident.get_category_display }}
+                                </span>
+                            </div>
+                            <p class="text-gray-600 mb-3">{{ incident.description|truncatewords:20 }}</p>
+                            <div class="flex items-center gap-4 text-sm text-gray-500">
+                                <div class="flex items-center">
+                                    <i data-feather="calendar" class="w-4 h-4 mr-1"></i>
+                                    <span>{{ incident.reported_at|date:"j M Y, H:i" }}</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <i data-feather="map-pin" class="w-4 h-4 mr-1"></i>
+                                    <span>{{ incident.segment.service.name }}</span>
+                                </div>
+                                {% if incident.is_overdue %}
+                                <div class="flex items-center text-red-600">
+                                    <i data-feather="clock" class="w-4 h-4 mr-1"></i>
+                                    <span>Vencida</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm text-gray-500 mb-2">#{{ incident.id }}</div>
+                            <div class="flex items-center gap-2">
+                                {% if incident.severity == 'critical' %}
+                                    <span class="w-3 h-3 bg-red-500 rounded-full"></span>
+                                {% elif incident.severity == 'high' %}
+                                    <span class="w-3 h-3 bg-orange-500 rounded-full"></span>
+                                {% elif incident.severity == 'medium' %}
+                                    <span class="w-3 h-3 bg-yellow-500 rounded-full"></span>
+                                {% else %}
+                                    <span class="w-3 h-3 bg-green-500 rounded-full"></span>
+                                {% endif %}
+                                <span class="text-sm text-gray-600">{{ incident.get_severity_display }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                        <div class="text-sm text-gray-500">
+                            {% if incident.assigned_to %}
+                                Asignado a: {{ incident.assigned_to.get_full_name }}
+                            {% else %}
+                                Sin asignar
+                            {% endif %}
+                        </div>
+                        <a href="{% url 'incident_detail' incident.id %}" 
+                           class="px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 flex items-center">
+                            <i data-feather="eye" class="w-4 h-4 mr-2"></i>
+                            Ver detalles
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <div class="mt-8 flex justify-center">
+            <nav class="flex items-center space-x-2">
+                {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_category %}&category={{ current_category }}{% endif %}" 
+                       class="px-3 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+                        Anterior
+                    </a>
+                {% endif %}
+                
+                <span class="px-3 py-2 text-gray-600">
+                    Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                </span>
+                
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_category %}&category={{ current_category }}{% endif %}" 
+                       class="px-3 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+                        Siguiente
+                    </a>
+                {% endif %}
+            </nav>
+        </div>
+        {% endif %}
+    {% else %}
+        <div class="bg-white rounded-xl shadow-sm p-12 text-center">
+            <i data-feather="alert-triangle" class="w-16 h-16 text-gray-300 mx-auto mb-4"></i>
+            <h3 class="text-lg font-medium text-gray-800 mb-2">No hay incidencias</h3>
+            <p class="text-gray-600 mb-6">No tienes incidencias reportadas con los filtros seleccionados.</p>
+            <a href="{% url 'home' %}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                <i data-feather="arrow-left" class="w-4 h-4 mr-2"></i>
+                Volver al itinerario
+            </a>
+        </div>
+    {% endif %}
+</main>
+{% endblock %}

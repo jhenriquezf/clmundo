@@ -1,0 +1,59 @@
+<!-- templates/travel/incident_detail.html - CORREGIDO -->
+{% extends 'travel/base.html' %}
+
+{% block title %}Incidencia #{{ incident.id }} - AndesTravel{% endblock %}
+
+{% block content %}
+<header class="bg-white shadow-sm sticky top-0 z-10">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+        <a href="{% url 'incident_list' %}" class="p-1 rounded-lg hover:bg-gray-100">
+            <i data-feather="arrow-left" class="text-gray-600 w-5 h-5"></i>
+        </a>
+        <h1 class="font-semibold text-gray-800">Incidencia #{{ incident.id }}</h1>
+        <div class="flex items-center space-x-2">
+            <span class="px-2 py-1 text-xs font-medium rounded-full
+                {% if incident.status == 'open' %}bg-red-100 text-red-800
+                {% elif incident.status == 'in_progress' %}bg-yellow-100 text-yellow-800
+                {% elif incident.status == 'resolved' %}bg-green-100 text-green-800
+                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                {{ incident.get_status_display }}
+            </span>
+        </div>
+    </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-4 py-6">
+    <!-- Información principal -->
+    <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">{{ incident.title }}</h2>
+        <p class="text-gray-600 mb-4">{{ incident.description }}</p>
+        
+        <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+                <span class="text-gray-500">Reportado:</span>
+                <span class="font-medium">{{ incident.reported_at|date:"j M Y, H:i" }}</span>
+            </div>
+            <div>
+                <span class="text-gray-500">Estado:</span>
+                <span class="font-medium">{{ incident.get_status_display }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Mensaje de estado -->
+    {% if incident.resolution_notes %}
+    <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+        <h3 class="font-medium text-green-800 mb-2">Resolución</h3>
+        <p class="text-green-700">{{ incident.resolution_notes }}</p>
+    </div>
+    {% endif %}
+    
+    <!-- Botón de regreso -->
+    <div class="text-center">
+        <a href="{% url 'incident_list' %}" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            <i data-feather="arrow-left" class="w-4 h-4 mr-2"></i>
+            Volver a mis incidencias
+        </a>
+    </div>
+</main>
+{% endblock %}

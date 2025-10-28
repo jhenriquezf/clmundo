@@ -1,0 +1,53 @@
+# templates/travel/emails/incident_reported.html
+"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Incidencia reportada - AndesTravel</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: #ef4444; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px;">
+        <h1 style="color: white; margin: 0;">Incidencia Reportada</h1>
+        <p style="color: white; margin: 10px 0 0 0;">Código de seguimiento: #{{ incident.id }}</p>
+    </div>
+    
+    <h2>Hola {{ customer.user.first_name }},</h2>
+    
+    <p>Hemos recibido tu reporte de incidencia y nuestro equipo está trabajando para resolverlo lo antes posible.</p>
+    
+    <div style="background: #f9fafb; border-left: 4px solid #ef4444; padding: 20px; margin: 20px 0; border-radius: 5px;">
+        <h3 style="margin: 0 0 10px 0;">{{ incident.title }}</h3>
+        <p style="margin: 0; color: #6b7280;">{{ incident.description }}</p>
+        <div style="margin-top: 15px; font-size: 14px; color: #6b7280;">
+            <p><strong>Servicio afectado:</strong> {{ incident.segment.service.name }}</p>
+            <p><strong>Severidad:</strong> {{ incident.get_severity_display }}</p>
+            <p><strong>Estado:</strong> {{ incident.get_status_display }}</p>
+        </div>
+    </div>
+    
+    <div style="background: #dbeafe; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <h4 style="margin: 0 0 10px 0; color: #1e40af;">Próximos pasos:</h4>
+        <ul style="margin: 0; color: #1e40af;">
+            <li>Revisaremos tu caso en las próximas 2 horas</li>
+            <li>Te contactaremos para coordinar la solución</li>
+            <li>Recibirás actualizaciones por esta vía</li>
+        </ul>
+    </div>
+    
+    <p>Puedes hacer seguimiento de tu caso en: <a href="{{ domain }}/incident/{{ incident.id }}/">{{ domain }}/incident/{{ incident.id }}/</a></p>
+    
+    <div style="text-align: center; margin: 30px 0;">
+        <p>¿Necesitas ayuda inmediata?</p>
+        <a href="tel:+56999990000" style="background: #ef4444; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">
+            Llamar Emergencia: +56 9 9999 0000
+        </a>
+    </div>
+    
+    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+    <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+        AndesTravel - Operado por María Torres
+    </p>
+</body>
+</html>
+"""

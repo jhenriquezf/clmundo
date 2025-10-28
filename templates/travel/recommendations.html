@@ -1,0 +1,589 @@
+<!-- templates/travel/recommendations.html -->
+{% extends 'travel/base.html' %}
+
+{% block title %}Recomendaciones - AndesTravel{% endblock %}
+
+{% block extra_css %}
+.recommendation-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.recommendation-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.category-tab.active {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.filter-chip {
+    transition: all 0.2s ease;
+}
+
+.filter-chip:hover {
+    transform: scale(1.05);
+}
+
+.gradient-bg {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in-up {
+    animation: fadeInUp 0.6s ease forwards;
+}
+{% endblock %}
+
+{% block content %}
+<header class="bg-white shadow-sm sticky top-0 z-10">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+        <a href="{% url 'home' %}" class="p-1 rounded-lg hover:bg-gray-100">
+            <i data-feather="arrow-left" class="text-gray-600 w-5 h-5"></i>
+        </a>
+        <h1 class="font-semibold text-gray-800">Recomendaciones</h1>
+        <button onclick="getCurrentLocationForRecommendations()" class="p-1 rounded-lg hover:bg-gray-100" title="Obtener ubicación actual">
+            <i data-feather="navigation" class="text-gray-600 w-5 h-5"></i>
+        </button>
+    </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-4 py-6">
+    <!-- Header con ubicación -->
+    <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl text-white p-6 mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-xl font-bold mb-2">Lugares cerca de ti</h2>
+                <p class="opacity-90" id="current-location-text">Puerto Varas, Chile</p>
+            </div>
+            <div class="text-right">
+                <div class="text-2xl font-bold" id="places-count">12</div>
+                <div class="text-sm opacity-75">lugares encontrados</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filtros por categoría -->
+    <div class="flex space-x-2 overflow-x-auto pb-2 mb-6">
+        <button onclick="filterByCategory('all')" class="category-tab active px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap bg-gray-200 text-gray-700">
+            Todos
+        </button>
+        <button onclick="filterByCategory('restaurant')" class="category-tab px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap bg-gray-200 text-gray-700">
+            Restaurantes
+        </button>
+        <button onclick="filterByCategory('tourist_attraction')" class="category-tab px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap bg-gray-200 text-gray-700">
+            Atracciones
+        </button>
+        <button onclick="filterByCategory('shopping_mall')" class="category-tab px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap bg-gray-200 text-gray-700">
+            Compras
+        </button>
+        <button onclick="filterByCategory('hospital')" class="category-tab px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap bg-gray-200 text-gray-700">
+            Servicios
+        </button>
+    </div>
+    
+    <!-- Filtros adicionales -->
+    <div class="flex flex-wrap items-center gap-4 mb-6">
+        <div class="flex items-center space-x-2">
+            <label class="text-sm text-gray-600">Distancia:</label>
+            <select id="distance-filter" class="px-3 py-1 border border-gray-300 rounded-lg text-sm">
+                <option value="500">500m</option>
+                <option value="1000">1 km</option>
+                <option value="2000" selected>2 km</option>
+                <option value="5000">5 km</option>
+            </select>
+        </div>
+        
+        <div class="flex items-center space-x-2">
+            <label class="text-sm text-gray-600">Calificación mín:</label>
+            <select id="rating-filter" class="px-3 py-1 border border-gray-300 rounded-lg text-sm">
+                <option value="0">Cualquiera</option>
+                <option value="3">3+ estrellas</option>
+                <option value="4" selected>4+ estrellas</option>
+                <option value="4.5">4.5+ estrellas</option>
+            </select>
+        </div>
+
+        <button onclick="refreshRecommendations()" class="px-4 py-1 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+            Actualizar
+        </button>
+    </div>
+    
+    <!-- Lista de recomendaciones -->
+    <div id="recommendations-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Contenido dinámico -->
+    </div>
+    
+    <!-- Loading state -->
+    <div id="loading-recommendations" class="text-center py-8">
+        <div class="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mb-4 mx-auto"></div>
+        <p class="text-gray-600">Buscando los mejores lugares para ti...</p>
+    </div>
+
+    <!-- Error state -->
+    <div id="error-state" class="text-center py-12 hidden">
+        <i data-feather="alert-triangle" class="w-16 h-16 text-red-300 mx-auto mb-4"></i>
+        <h3 class="text-lg font-medium text-gray-800 mb-2">Algo salió mal</h3>
+        <p class="text-gray-600 mb-4">No pudimos cargar las recomendaciones</p>
+        <button onclick="loadRecommendations()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            Intentar de nuevo
+        </button>
+    </div>
+</main>
+
+<!-- Modal para compartir -->
+<div id="share-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl p-6 max-w-sm mx-4 w-full">
+        <h3 class="font-semibold text-lg mb-4">Compartir lugar</h3>
+        <div class="space-y-3">
+            <button onclick="shareVia('whatsapp')" class="w-full flex items-center space-x-3 p-3 bg-green-50 hover:bg-green-100 rounded-lg">
+                <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-sm">W</div>
+                <span>WhatsApp</span>
+            </button>
+            <button onclick="shareVia('copy')" class="w-full flex items-center space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg">
+                <i data-feather="copy" class="w-5 h-5 text-gray-600"></i>
+                <span>Copiar enlace</span>
+            </button>
+            <button onclick="shareVia('native')" class="w-full flex items-center space-x-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg">
+                <i data-feather="share-2" class="w-5 h-5 text-blue-600"></i>
+                <span>Más opciones</span>
+            </button>
+        </div>
+        <button onclick="closeShareModal()" class="w-full mt-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
+            Cancelar
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+let currentLocation = null;
+let allRecommendations = [];
+let currentCategory = 'all';
+let shareData = null;
+
+// Datos de ejemplo para demostración
+const mockPlaces = [
+    {
+        name: "Restaurante La Olla",
+        rating: 4.5,
+        price_level: 2,
+        vicinity: "Centro de Puerto Varas",
+        types: ["restaurant", "food"],
+        distance: 0.5
+    },
+    {
+        name: "Café Danes",
+        rating: 4.7,
+        price_level: 2,
+        vicinity: "Av. Vicente Pérez Rosales",
+        types: ["cafe", "bakery"],
+        distance: 0.8
+    },
+    {
+        name: "Mirador Cerro Calvario",
+        rating: 4.3,
+        price_level: 0,
+        vicinity: "Puerto Varas",
+        types: ["tourist_attraction", "viewpoint"],
+        distance: 1.2
+    },
+    {
+        name: "Supermercado Unimarc",
+        rating: 4.0,
+        price_level: 1,
+        vicinity: "Av. Salvador Allende",
+        types: ["supermarket", "store"],
+        distance: 0.6
+    },
+    {
+        name: "Hotel Cumbres Puerto Varas",
+        rating: 4.6,
+        price_level: 3,
+        vicinity: "Klener 195",
+        types: ["lodging", "hotel"],
+        distance: 0.9
+    },
+    {
+        name: "Farmacia Cruz Verde",
+        rating: 4.2,
+        price_level: 1,
+        vicinity: "San Francisco 417",
+        types: ["pharmacy", "health"],
+        distance: 0.4
+    }
+];
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeEventListeners();
+    loadRecommendations();
+});
+
+function initializeEventListeners() {
+    // Event listeners para filtros
+    document.getElementById('distance-filter').addEventListener('change', applyFilters);
+    document.getElementById('rating-filter').addEventListener('change', applyFilters);
+    
+    // Event listener para cerrar modal al hacer clic fuera
+    document.getElementById('share-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeShareModal();
+        }
+    });
+    
+    // Manejar tecla Escape para cerrar modal
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeShareModal();
+        }
+    });
+}
+
+function getCurrentLocationForRecommendations() {
+    if (navigator.geolocation) {
+        document.getElementById('current-location-text').textContent = 'Obteniendo ubicación...';
+        
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                currentLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                
+                document.getElementById('current-location-text').textContent = 'Tu ubicación actual';
+                loadRecommendations();
+            },
+            function(error) {
+                console.error('Error getting location:', error);
+                document.getElementById('current-location-text').textContent = 'No se pudo obtener ubicación';
+                
+                // Mostrar mensaje de error temporal
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg z-50';
+                errorMsg.textContent = 'Error al obtener ubicación';
+                document.body.appendChild(errorMsg);
+                
+                setTimeout(() => {
+                    errorMsg.remove();
+                    document.getElementById('current-location-text').textContent = 'Puerto Varas, Chile';
+                }, 3000);
+            },
+            {
+                timeout: 10000,
+                enableHighAccuracy: true
+            }
+        );
+    } else {
+        alert('La geolocalización no es compatible con este navegador');
+    }
+}
+
+function loadRecommendations() {
+    showLoading();
+    hideError();
+
+    // Para versión con API real, descomenta y ajusta lo siguiente:
+    /*
+    const category = currentCategory === 'all' ? 'restaurant' : currentCategory;
+    const distance = document.getElementById('distance-filter')?.value || 2000;
+    
+    const lat = currentLocation ? currentLocation.lat : '';
+    const lng = currentLocation ? currentLocation.lng : '';
+    
+    fetch(`/api/nearby-places/?lat=${lat}&lng=${lng}&type=${category}&radius=${distance}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                allRecommendations = data.places;
+                applyFilters();
+            } else {
+                displayErrorState();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading recommendations:', error);
+            displayErrorState();
+        })
+        .finally(() => {
+            hideLoading();
+        });
+    */
+
+    // Simular llamada a API con datos mock
+    setTimeout(() => {
+        try {
+            allRecommendations = mockPlaces;
+            applyFilters();
+        } catch (error) {
+            console.error('Error loading recommendations:', error);
+            displayErrorState();
+        } finally {
+            hideLoading();
+        }
+    }, 1000);
+}
+
+function filterByCategory(category) {
+    currentCategory = category;
+    
+    // Actualizar botones de categoría
+    document.querySelectorAll('.category-tab').forEach(tab => {
+        tab.classList.remove('active');
+        tab.classList.add('bg-gray-200', 'text-gray-700');
+    });
+    
+    event.target.classList.add('active');
+    event.target.classList.remove('bg-gray-200', 'text-gray-700');
+    
+    applyFilters();
+}
+
+function applyFilters() {
+    const distance = parseInt(document.getElementById('distance-filter').value);
+    const minRating = parseFloat(document.getElementById('rating-filter').value);
+    
+    let filteredPlaces = allRecommendations.filter(place => {
+        // Filtro por distancia (convertir km a metros si es necesario)
+        const placeDistance = place.distance * 1000; // Convertir a metros
+        if (placeDistance > distance) return false;
+        
+        // Filtro por calificación
+        if (place.rating && place.rating < minRating) return false;
+        
+        // Filtro por categoría
+        if (currentCategory !== 'all') {
+            const categoryMap = {
+                'restaurant': ['restaurant', 'cafe', 'food', 'bakery'],
+                'tourist_attraction': ['tourist_attraction', 'viewpoint', 'park'],
+                'shopping_mall': ['shopping_mall', 'store', 'supermarket'],
+                'hospital': ['hospital', 'pharmacy', 'health', 'doctor']
+            };
+            
+            const allowedTypes = categoryMap[currentCategory] || [currentCategory];
+            if (!place.types.some(type => allowedTypes.includes(type))) return false;
+        }
+        
+        return true;
+    });
+    
+    // Ordenar por calificación y distancia
+    filteredPlaces.sort((a, b) => {
+        if (b.rating !== a.rating) {
+            return (b.rating || 0) - (a.rating || 0);
+        }
+        return a.distance - b.distance;
+    });
+    
+    displayRecommendations(filteredPlaces);
+}
+
+function displayRecommendations(places) {
+    const grid = document.getElementById('recommendations-grid');
+    
+    if (places.length === 0) {
+        grid.innerHTML = `
+            <div class="col-span-full text-center py-12">
+                <i data-feather="map-pin" class="w-16 h-16 text-gray-300 mx-auto mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-800 mb-2">No se encontraron lugares</h3>
+                <p class="text-gray-600">Intenta cambiar los filtros o la categoría</p>
+            </div>
+        `;
+        feather.replace();
+        document.getElementById('places-count').textContent = '0';
+        return;
+    }
+    
+    grid.innerHTML = places.map((place, index) => `
+        <div class="recommendation-card bg-white rounded-xl shadow-sm overflow-hidden fade-in-up" style="animation-delay: ${index * 0.1}s">
+            <div class="h-48 bg-gradient-to-br from-blue-400 to-blue-600 relative overflow-hidden">
+                <div class="absolute inset-0 bg-black bg-opacity-20"></div>
+                <div class="absolute bottom-4 left-4 text-white">
+                    <h3 class="font-semibold text-lg">${place.name}</h3>
+                    ${place.rating ? `
+                        <div class="flex items-center mt-1">
+                            <span class="text-yellow-300 mr-1">★</span>
+                            <span class="text-sm">${place.rating}/5</span>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="absolute top-4 right-4">
+                    ${getPriceLevel(place.price_level || 0)}
+                </div>
+                <div class="absolute bottom-4 right-4 text-white text-sm">
+                    ${place.distance ? `${place.distance} km` : ''}
+                </div>
+            </div>
+            
+            <div class="p-4">
+                <p class="text-gray-600 text-sm mb-3">${place.vicinity || 'Cerca de ti'}</p>
+                
+                <div class="flex items-center justify-between">
+                    <div class="flex flex-wrap gap-1">
+                        ${getPlaceTypes(place.types || []).map(type => 
+                            `<span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">${type}</span>`
+                        ).join('')}
+                    </div>
+                    
+                    <div class="flex space-x-2">
+                        <button onclick="getDirectionsToPlace('${place.name}', '${place.vicinity}')" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Cómo llegar">
+                            <i data-feather="navigation" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="sharePlace('${place.name}', '${place.vicinity}')" class="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors" title="Compartir">
+                            <i data-feather="share-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    document.getElementById('places-count').textContent = places.length;
+    feather.replace();
+}
+
+function getPriceLevel(level) {
+    const priceLabels = ['Gratis', '$', '$$', '$$$', '$$$$'];
+    const priceColors = ['bg-green-500', 'bg-yellow-500', 'bg-orange-500', 'bg-red-500', 'bg-purple-500'];
+    
+    if (level === 0) {
+        return `<span class="px-2 py-1 ${priceColors[level]} text-white text-xs rounded-full font-medium">${priceLabels[level]}</span>`;
+    }
+    
+    return `<span class="px-2 py-1 ${priceColors[level] || priceColors[1]} text-white text-xs rounded-full font-medium">${priceLabels[level] || '$'}</span>`;
+}
+
+function getPlaceTypes(types) {
+    const typeTranslations = {
+        'restaurant': 'Restaurante',
+        'cafe': 'Café',
+        'food': 'Comida',
+        'bakery': 'Panadería',
+        'tourist_attraction': 'Atracción',
+        'viewpoint': 'Mirador',
+        'park': 'Parque',
+        'shopping_mall': 'Mall',
+        'store': 'Tienda',
+        'supermarket': 'Supermercado',
+        'hospital': 'Hospital',
+        'pharmacy': 'Farmacia',
+        'health': 'Salud',
+        'doctor': 'Médico',
+        'lodging': 'Hospedaje',
+        'hotel': 'Hotel'
+    };
+    
+    return types
+        .slice(0, 2) // Mostrar máximo 2 tipos
+        .map(type => typeTranslations[type] || type)
+        .filter(Boolean);
+}
+
+function getDirectionsToPlace(placeName, vicinity) {
+    const destination = encodeURIComponent(`${placeName}, ${vicinity}`);
+    
+    // Detectar si es móvil para usar apps nativas
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+        // En móviles, intentar abrir apps nativas
+        const googleMapsApp = `https://maps.google.com/?q=${destination}`;
+        window.open(googleMapsApp, '_blank');
+    } else {
+        // En desktop, abrir Google Maps web
+        const googleMapsWeb = `https://www.google.com/maps/search/${destination}`;
+        window.open(googleMapsWeb, '_blank');
+    }
+}
+
+function sharePlace(placeName, vicinity) {
+    shareData = {
+        title: `${placeName} - AndesTravel`,
+        text: `Te recomiendo visitar ${placeName} en ${vicinity}`,
+        url: `${window.location.origin}/place/${encodeURIComponent(placeName)}`
+    };
+    
+    document.getElementById('share-modal').classList.remove('hidden');
+}
+
+function shareVia(method) {
+    if (!shareData) return;
+    
+    switch (method) {
+        case 'whatsapp':
+            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareData.text + ' ' + shareData.url)}`;
+            window.open(whatsappUrl, '_blank');
+            break;
+            
+        case 'copy':
+            navigator.clipboard.writeText(shareData.url).then(() => {
+                showToast('Enlace copiado al portapapeles');
+            }).catch(() => {
+                showToast('Error al copiar enlace');
+            });
+            break;
+            
+        case 'native':
+            if (navigator.share) {
+                navigator.share(shareData);
+            } else {
+                showToast('Función no disponible');
+            }
+            break;
+    }
+    
+    closeShareModal();
+}
+
+function closeShareModal() {
+    document.getElementById('share-modal').classList.add('hidden');
+    shareData = null;
+}
+
+function refreshRecommendations() {
+    loadRecommendations();
+}
+
+function showLoading() {
+    document.getElementById('loading-recommendations').style.display = 'block';
+    document.getElementById('recommendations-grid').innerHTML = '';
+}
+
+function hideLoading() {
+    document.getElementById('loading-recommendations').style.display = 'none';
+}
+
+function displayErrorState() {
+    hideLoading();
+    document.getElementById('error-state').classList.remove('hidden');
+    document.getElementById('recommendations-grid').innerHTML = '';
+    feather.replace();
+}
+
+function hideError() {
+    document.getElementById('error-state').classList.add('hidden');
+}
+
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg z-50 transition-opacity';
+    toast.textContent = message;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 2000);
+}
+{% endblock %}

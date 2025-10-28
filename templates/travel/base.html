@@ -1,0 +1,68 @@
+<!-- templates/travel/base.html -->
+<!DOCTYPE html>
+{% load i18n %}
+<html lang="{{ request.LANGUAGE_CODE|default:'es' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ClMundo{% endblock %}</title>
+    
+    <link rel="manifest" href="{% static 'manifest.json' %}">
+    <meta name="theme-color" content="#2563eb"> <script src="https://cdn.tailwindcss.com/3.4.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js" defer></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Base styles */
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f8fafc; /* A slightly softer background gray */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* Custom transition for dropdown */
+        .dropdown-menu {
+            transition: opacity 200ms ease-in-out, transform 200ms ease-in-out;
+            opacity: 0;
+            transform: translateY(-10px);
+            pointer-events: none;
+        }
+        .dropdown-menu.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        /* Styling for the timeline vertical bar */
+        .timeline-item:before {
+            content: '';
+            position: absolute;
+            left: 1.5rem; /* 24px */
+            top: 2.5rem; /* 40px */
+            bottom: -1.25rem; /* -20px */
+            width: 2px;
+            background-color: #e5e7eb; /* border-gray-200 */
+            z-index: 0;
+        }
+        .timeline-item:last-child:before {
+            display: none;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="{% block body_class %}min-h-screen{% endblock %}">
+    
+    {% block content %}{% endblock %}
+    
+    <script>
+        // Use DOMContentLoaded to ensure the DOM is fully loaded before running scripts
+        document.addEventListener('DOMContentLoaded', function() {
+            feather.replace();
+
+            {% block extra_js %}{% endblock %}
+        });
+    </script>
+</body>
+</html>
