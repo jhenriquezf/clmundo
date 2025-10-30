@@ -1,10 +1,9 @@
-name: Deploy to GCP
-
+name: Deploy to GCP with HTTPS
 
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:  # Permite ejecutar manualmente
+  workflow_dispatch:
 
 env:
   IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/clmundo
@@ -38,6 +37,60 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
           cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max
 
+      - name: Setup SSL Certificates (First time only)
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VM_IP }}
+          username: ${{ secrets.GCP_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # Install certbot if not installed
+            if ! command -v certbot &> /dev/null; then
+              sudo apt update
+              sudo apt install -y certbot
+            fi
+            
+            # Create directories
+            sudo mkdir -p /var/www/certbot
+            mkdir -p ~/clmundo/nginx/ssl
+            
+            # Get certificate if it doesn't exist
+            if [ ! -f /etc/letsencrypt/live/clmundo.cloud8.cl/fullchain.pem ]; then
+              echo "Obtaining SSL certificate..."
+              sudo certbot certonly --standalone \
+                -d clmundo.cloud8.cl \
+                -d www.clmundo.cloud8.cl \
+                --non-interactive \
+                --agree-tos \
+                --email ${{ secrets.SSL_EMAIL }} \
+                --http-01-port=80
+            fi
+            
+            # Copy certificates
+            sudo cp /etc/letsencrypt/live/clmundo.cloud8.cl/fullchain.pem ~/clmundo/nginx/ssl/
+            sudo cp /etc/letsencrypt/live/clmundo.cloud8.cl/privkey.pem ~/clmundo/nginx/ssl/
+            sudo chown -R ${{ secrets.GCP_USER }}:${{ secrets.GCP_USER }} ~/clmundo/nginx/ssl
+            chmod 600 ~/clmundo/nginx/ssl/privkey.pem
+            
+            # Setup auto-renewal
+            if ! sudo crontab -l | grep -q certbot; then
+              (sudo crontab -l 2>/dev/null; echo "0 0 * * 0 certbot renew --quiet && cp /etc/letsencrypt/live/clmundo.cloud8.cl/fullchain.pem ~/clmundo/nginx/ssl/ && cp /etc/letsencrypt/live/clmundo.cloud8.cl/privkey.pem ~/clmundo/nginx/ssl/ && cd ~/clmundo && docker-compose -f docker-compose.prod.yml restart nginx") | sudo crontab -
+            fi
+
+      - name: Setup environment files
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VM_IP }}
+          username: ${{ secrets.GCP_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/clmundo
+            if [ -f .env.prod ]; then
+              cp .env.prod .env
+            else
+              echo "Warning: .env.prod not found"
+            fi
+
       - name: Deploy to GCP VM
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -46,9 +99,24 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd ~/clmundo
+            
+            # Load environment variables
+            export $(grep -v '^#' .env 2>/dev/null | xargs)
+            
+            # Pull latest images
             docker-compose -f docker-compose.prod.yml pull
+            
+            # Stop and recreate containers
+            docker-compose -f docker-compose.prod.yml down
             docker-compose -f docker-compose.prod.yml up -d
+            
+            # Wait for services to be ready
+            sleep 20
+            
+            # Run migrations
             docker-compose -f docker-compose.prod.yml exec -T web python manage.py migrate --noinput
+            
+            # Collect static files
             docker-compose -f docker-compose.prod.yml exec -T web python manage.py collectstatic --noinput
             
       - name: Verify deployment
@@ -59,4 +127,14 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd ~/clmundo
+            echo "=== Container Status ==="
             docker-compose -f docker-compose.prod.yml ps
+            echo ""
+            echo "=== Web Service Logs (last 20 lines) ==="
+            docker-compose -f docker-compose.prod.yml logs --tail=20 web
+
+      - name: Health Check
+        run: |
+          sleep 10
+          echo "Testing HTTPS endpoint..."
+          curl -f https://clmundo.cloud8.cl/admin/ || curl -f http://${{ secrets.VM_IP }}/admin/ || exit 1
